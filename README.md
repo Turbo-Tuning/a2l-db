@@ -2,7 +2,7 @@
 A2L to DB (SQLite) converter
 
 USAGE: 
-  "./a2l-db <a2l-file>"
+  "./a2l-db a2l-file"
  
  Converts an A2L file into a more usable SQLite database
   
