@@ -1,5 +1,5 @@
 # a2l-db
-A2L to DB (SQLite) converter
+ASAM MCD-2 MC (aka A2L) to DB (SQLite) converter
 
 USAGE: 
   "./a2l-db a2l-file"
