@@ -1,10 +1,10 @@
 # a2l-db
-ASAM MCD-2 MC (aka A2L) to DB (SQLite) converter
+ASAM MCD-2 MC (aka A2L) to XML converter
 
 USAGE: 
   "./a2l-db a2l-file"
  
- Converts an A2L file into a more usable SQLite database
+ Converts an A2L file into a more usable XML file
   
   The converter is designed to be as fast as possible. Compared to other scripts, this beats them all hands-down.
   
