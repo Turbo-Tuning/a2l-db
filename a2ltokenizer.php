@@ -78,9 +78,9 @@ class Tokenizer{
 						$tok = $this->SpecialTokStrip($tok);
 						$tok = str_replace('|||', ' - ', $tok);
 						
-						$toks[] = ($tok);
+						$toks[] = $this->stripNonUTF8($tok);
 					} else {
-						$toks[] = $tok;
+						$toks[] = $this->stripNonUTF8($tok);
 					}
 					$tok = strtok(' ');
 				}
@@ -93,6 +93,10 @@ class Tokenizer{
 			$this->tokens = $toks;
 		}
 		
+	}
+
+	private function stripNonUTF8($str){
+		return preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $str);
 	}
 
 	private function ReindexArray($arr){

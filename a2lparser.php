@@ -1,6 +1,8 @@
 <?php
 
 class a2lparser{
+	var $db_dir = 'parser_a2l/db/';
+	var $trenner = array(" ", "[", "]", "{" ,"}" ,"(" ,")" ,"," ,";", "=" ,"\r" ,"\l" ,"/", '"');
 	var $beginend = array('/begin', '/end');
 	var $mainsections = array(
 		'A2ML' => 0, 
@@ -23,7 +25,7 @@ class a2lparser{
 		'CAN_PARAM', 'CHECKSUM', 'CHECKSUM_PARAM', 'DEFINED_PAGES', 'DISTAB_CFG', 'FLASH_COPY', 
 		'IF_DATA', 'MEMORY_SEGMENT', 'RASTER', 'SEED_KEY', 'SOURCE', 'SUB_FUNCTION', 'TP_BLOB');
 	var $keywords = array(
-		'ADDRESS_MAPPING', 'CPU_TYPE', 'CUSTOMER_NO', 'DEPOSIT', 'ECU', 'EXTENDED_LIMITS', 'FORMAT', 
+		'ADDR_EPK', 'ADDRESS_MAPPING', 'CPU_TYPE', 'CUSTOMER_NO', 'DEPOSIT', 'ECU', 'EPK', 'EXTENDED_LIMITS', 'FORMAT', 
 		'KP_BLOB', 'PHONE_NO', 'PROJECT_NO', 'PAGE_SWITCH', 'QP_BLOB', 'SYSTEM_CONSTANT', 'USER', 'VERSION');
 
 	var $length;
@@ -46,11 +48,10 @@ class a2lparser{
 
 		
 		$this->tokens->MoveFirst();
-
 		
 		$this->ParseSub();
 		$this->tree->endDocument();
-		$this->tree->Prt();
+		//file_put_contents(_DATAPATH.$this->db_dir.$this->outFile, $this->tree->outputMemory(true));
 				
 	}
 
@@ -102,14 +103,18 @@ class a2lparser{
 					break;
 				default:
 					if(in_array($Token, $this->keywords)){
-						if(!in_array($this->tokens->peekNextToken(), $this->beginend)){
+						$nextToken = trim($this->tokens->peekNextToken(), chr(34));
+						if((!in_array($nextToken, $this->beginend)) and (!in_array($nextToken, $this->keywords)) and (strlen($nextToken) !== 0)){
 							$Token2 = $this->get();
+							
 							if (!$silent) $this->tree->insert($Token, $Token2);
 						} else {
-							if (!$silent) $this->tree->insert('text', $Token);
+							if (!$silent) $this->tree->insert($Token, 'empty');
 						}
 					} else {
-						if (!$silent) $this->tree->insert('text', $Token);
+						if (!$silent) {
+							$this->tree->insert('text', $Token);
+						}
 					}
 			}
 		}

@@ -47,16 +47,8 @@ class GeneralTree{
     }
 
     public function Prt(){
-        $buff = (($this->data->outputMemory(true)));
-        file_put_contents($this->outFile, $buff);
-        /*$doc = new DOMDocument('1.0','utf-8');
-        $doc->preserveWhiteSpace = false;
-        $doc->formatOutput = true;
-        $doc->loadXML($buff);
-        $errors = libxml_get_errors();
-        var_dump($errors);
-        $xml_string = $doc->saveXML();
-        //echo $xml_string;
-        file_put_contents($this->outFile.'.xml', $xml_string);*/
+        $buff = utf8_encode(($this->data->outputMemory(true)));
+        $compressed = gzencode($buff, 9);
+        file_put_contents($this->outFile.'.xml.zip', $compressed);
     }
 }

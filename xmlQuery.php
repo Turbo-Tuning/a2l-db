@@ -4,7 +4,7 @@ class xmlQuery{
     var $xml;
 
     public function __construct($xmlFile){
-        $this->xml = simplexml_load_file($xmlFile);
+        $this->xml = simplexml_load_string(gzdecode(file_get_contents($xmlFile)));
     }
 
     public function getListOfCharacteristics(){
