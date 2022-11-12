@@ -11,6 +11,7 @@ class Tokenizer{
 	var $str;
 	var $bEPKfound = false; // true if EPK found in the a2l file
 	var $buffer;
+	var $slashedbuff;
 
 	public function Progress(){
 		$p = ($this->idx_current/$this->total)*100;
@@ -24,18 +25,39 @@ class Tokenizer{
 		
 		if(substr_count($str, 'ADDR_EPK') > 0){
 			$this->bEPKfound = true;
+			//Msg('EPK found');
 		} 
-		if(substr_count($str, "begin CHARACTER") > 0){
+		if(substr_count($str, "begin CHARACTERISTIC") > 0){
+			//Msg('htmlspecialchars');
+			//$str = htmlspecialchars($str, ENT_DISALLOWED, 'UTF-8');
 			
+			//$str = str_replace(chr(34).chr(34), '*', $str);
+			//$str = preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $str);
+			$str = str_replace(chr(42).chr(47), chr(42).chr(47).chr(32), $str); // '*/'
 			$str = str_replace('\"', '*', $str);
 			$str = str_replace(chr(9), ' ', $str);
 			$str = str_replace(chr(13).chr(10), ' ||| ', $str);
 			$str = str_replace(chr(246), 'o', $str);
 			$str = utf8_encode($str);
+			$str = Normalizer::normalize( $str, Normalizer::FORM_C );
 			$str = str_replace(chr(10), ' ', $str);
-			$this->buffer = $str;
 			
+			$this->buffer = $str;
+			//$this->slashedbuff = addslashes($str);
+			//file_put_contents('before.txt', $str);
+			//$tik = explode(' ', $str);
 			$tok = strtok($str, ' ');
+			/*$fifo = new FIFO;
+			$c=1;
+			$fifo->Add($tok);
+			do{
+				$tok = strtok(' ');
+				$fifo->Add($tok);
+				//echo ++$c.' '.$tok;
+			} while(!is_bool($tok));*/
+			//$fifo->Prt();
+			//$c = $fifo->Total();
+			//$tok = $fifo->Get();
 			if($tok !== false){
 				while($tok !== false){
 					if(substr_count($tok, '|||')){
@@ -43,60 +65,88 @@ class Tokenizer{
 					}
 					elseif (substr_count($tok, '/*')>0){
 						if(substr_count($tok, '*/') > 0){
-							$tok = strtok(' ');
+							//$tok = strtok(' ');
+							//$tok = $fifo->Get();
 						} else {
 							do{
 								$tok = strtok(' ');
+								//$tok = $fifo->Get();
 							} while (substr_count($tok, '*/') == 0);
 						}
-					} elseif ((strpos($tok, '"') !== false) and (substr_count($tok, '"') < 2)) {
-						do{
-							$add = strtok(' ');
-							$tok .= " ".$add;
-					
-							$a = substr_count($add, chr(34));
-							$b = substr_count($add, chr(34).chr(34));
-							$c = substr($add,-1);
-							$d = substr($add, -2);
-							if($b > 0){
-								$e = $this->tokPeek($tok);
-							} else {
-								$e = '    ';
+					} elseif ((strpos($tok, '"') !== false) and ((substr_count($tok, '"') < 2) or (substr_count($tok, '"') > 2))) {
+						$c = substr_count($tok, '"');
+						if((($c) % 2) === 0){
+							if(substr($tok, 0, 3) == '"""'){
+								$rest = substr($tok, 3);
+								$tok = '"'.substr($rest,0, strlen($rest)-3).'"';
 							}
-							
-							if($b == 0) {
-								$a = 1;
-							} 
-							if($b == 0 and $c == '"'){
-								$a = 0;
-							}
-							
-							if($e == ' |||'){
-								$a = 0;
-							}
-						} while (($a <> 0));
+						} else {
+							do{
+								$add = strtok(' ');
+								
+								//$add = $fifo->Get();
+								$tok .= " ".$add;
+						
+								$a = substr_count($add, chr(34));
+								$b = substr_count($add, chr(34).chr(34));
+								$c = substr($add,-1);
+								$d = substr($add, -2);
+								$f = substr_count($tok, '"');
+								$g = $f % 2;
+								if($g === 0){
+									$a = 0;
+									//$e = $this->tokPeek($tok);
+								} else {
+									$e = '    ';
+								}
+								
+								if($b == 0) {
+									$a = 1;
+								} 
+								if($b == 0 and $c == '"'){
+									$a = 0;
+								}
+								
+								//if($e == ' |||'){
+								//	$a = 0;
+								//}
+							} while (($a <> 0));
+						}
 						$tok = $this->SpecialTokStrip($tok);
 						$tok = str_replace('|||', ' - ', $tok);
 						
-						$toks[] = $this->stripNonUTF8($tok);
+						$tok = preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $tok);
+						$toks[] = ($tok);
+						//Msg(count($toks).' tokens')	;
+						
 					} else {
-						$toks[] = $this->stripNonUTF8($tok);
+						$tok = preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $tok);
+						$toks[] = $tok;
 					}
 					$tok = strtok(' ');
+					//$tok = $fifo->Get();
 				}
 			} else {
-				//Finished tokenizing
+				//Msg('Tokenizer false');
 			}
 
+			//$toks = array_values($toks);
+			//$toks = array_combine(range(1, count($toks)), array_values($toks));
+			//$this->WriteTokens("before.txt");
+			//$toks = $this->Re
+			//Msg('Finished tokenizing');
 			Array($toks);
 			$this->total = count($toks);
 			$this->tokens = $toks;
+			//$this->WriteTokens("after.txt");
+			/*foreach($toks as $key => $val){
+				if(substr($val,1,6) == "Number") {
+					echo $key;
+					var_dump($toks[$key]);
+				}
+			}*/
 		}
 		
-	}
-
-	private function stripNonUTF8($str){
-		return preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $str);
 	}
 
 	private function ReindexArray($arr){
@@ -138,6 +188,8 @@ class Tokenizer{
 
 	public function GetNextToken(){
 		$token = "notoken";
+		//$log = new logger;
+		//$log->log("Current token:".$this->idx_current." of ".$this->total);
 		if((!$this->EOF())){
 			$token = $this->tokens[$this->idx_current];
 			$this->idx_current++;
@@ -149,11 +201,14 @@ class Tokenizer{
 			$token = str_replace(chr(10), '', $token);
 		}
 		
+		//$log->log("GetNextToken:".$token);
 		return $token;
 	}
 
 	public function Begin($section_name){
 		$this->startIdx = $this->idx_current;
+
+		//echo "$this->idx_current/$this->total $section_name<br/>";
 
 		//find the end of the section
 		$this->endIdx = 0;
@@ -192,7 +247,7 @@ class Tokenizer{
 					return '""';
 				}
 			}
-			
+			//$t = $this->GetNextToken();
 			do{
 				$t = $this->GetNextToken();
 			} while(($t == '|||'));
@@ -240,8 +295,23 @@ class Tokenizer{
 			if(substr_count($peek, chr(10)) > 0){
 				$peek = str_replace(chr(10), '', $peek);
 			}
+			if(($this->idx_current+$idx) > $this->total){
+				//Msg("Peeking ".$peek.' '.bin2hex($peek));
+			}
+			
 			return $peek;
 		} else {
+			//throw new Exception('Index greater than array');
+			//$log = new logger;
+			//Msg("Exception: index greater than array");
+			//Msg('Peeking: '.$idx);
+			//Msg('Current: '.$this->idx_current.' of '.$this->total);
+			//Msg('Last 5 tokens:');
+			for($t=$this->idx_current-5; $t<5; $t++){
+				//Msg($this->tokens[$t]);
+			}
+			//Msg('Moving on');
+		
 			return '';
 		}
 		
@@ -278,7 +348,9 @@ class Tokenizer{
 	}
 
 	function tokPeek($szPos){
+		$slashed = addslashes($szPos);
 		$pos = strpos($this->buffer, $szPos);
+
 		$szLen = strlen($szPos);
 		$test = substr($this->buffer, $pos+$szLen, 4);
 		return $test;

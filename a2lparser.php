@@ -25,16 +25,17 @@ class a2lparser{
 		'CAN_PARAM', 'CHECKSUM', 'CHECKSUM_PARAM', 'DEFINED_PAGES', 'DISTAB_CFG', 'FLASH_COPY', 
 		'IF_DATA', 'MEMORY_SEGMENT', 'RASTER', 'SEED_KEY', 'SOURCE', 'SUB_FUNCTION', 'TP_BLOB');
 	var $keywords = array(
-		'ADDR_EPK', 'ADDRESS_MAPPING', 'CPU_TYPE', 'CUSTOMER_NO', 'DEPOSIT', 'ECU', 'EPK', 'EXTENDED_LIMITS', 'FORMAT', 
-		'KP_BLOB', 'PHONE_NO', 'PROJECT_NO', 'PAGE_SWITCH', 'QP_BLOB', 'SYSTEM_CONSTANT', 'USER', 'VERSION');
+		'ADDR_EPK', 'ADDRESS_MAPPING', 'BYTE_ORDER', 'CPU_TYPE', 'CUSTOMER_NO', 'DEPOSIT', 'ECU', 'EPK', 'EXTENDED_LIMITS', 'FORMAT', 
+		'FUNCTION_LIST', 'KP_BLOB', 'MEMORY_LAYOUT', 'PHONE_NO', 'PROJECT_NO', 'PAGE_SWITCH', 'QP_BLOB', 'SYSTEM_CONSTANT', 'USER', 'VERSION');
 
 	var $length;
 	var $tokens;
-	var $validator;
+
     var $tree;
 
 	function __construct($tokens, $outFile){
 		$this->tokens = $tokens;
+
         $this->tree = new GeneralTree($outFile);
 	
 
@@ -48,6 +49,7 @@ class a2lparser{
 
 		
 		$this->tokens->MoveFirst();
+		//Msg('Begin parse. ');
 		
 		$this->ParseSub();
 		$this->tree->endDocument();
@@ -72,6 +74,24 @@ class a2lparser{
 					$Token3 = $this->get();
 					if(!$silent) $this->tree->attribute($Token, $Token2.'.'.$Token3);
 					break;
+				case "MEMORY_LAYOUT":
+					$Token2 = $this->get();
+					$Token3 = $this->get();
+					$Token4 = $this->get();
+					$Token5 = $this->get();
+					$Token6 = $this->get();
+					$Token7 = $this->get();
+					$Token8 = $this->get();
+					$Token9 = $this->get();
+					if (!$silent) $this->tree->insert($Token, $Token2);
+					if (!$silent) $this->tree->insert($Token, $Token3);
+					if (!$silent) $this->tree->insert($Token, $Token4);
+					if (!$silent) $this->tree->insert($Token, $Token5);
+					if (!$silent) $this->tree->insert($Token, $Token6);
+					if (!$silent) $this->tree->insert($Token, $Token7);
+					if (!$silent) $this->tree->insert($Token, $Token8);
+					if (!$silent) $this->tree->insert($Token, $Token9);
+					break;
 				case "SYSTEM_CONSTANT":
 					$Token2 = $this->get();
 					$Token3 = $this->get();
@@ -82,23 +102,27 @@ class a2lparser{
 						//Go silent
 						$silent = true;
 					}
-					if (!$silent) $this->tree->add($Token2);
-					if(isset($x)){
-						if($x == 1){
-							$Token3 = $this->get();
-							if (!$silent) $this->tree->attribute('shortDesc', $Token3);
-						} elseif($x == 2){
-							$Token3 = $this->get();
-							$Token4 = $this->get();
-							if (!$silent) $this->tree->attribute('shortDesc', $Token3);
-							if (!$silent) $this->tree->attribute('longDesc', $Token4);
-						} elseif($x == 0){
-
+					if (!$silent){
+						$this->tree->add($Token2);
+						if(isset($x)){
+							if($x == 1){
+								$Token3 = $this->get();
+								$this->tree->attribute('shortDesc', $Token3);
+							} elseif($x == 2){
+								$Token3 = $this->get();
+								$Token4 = $this->get();
+								$this->tree->attribute('shortDesc', $Token3);
+								$this->tree->attribute('longDesc', $Token4);
+							} elseif($x == 0){
+								//Msg('Why am i here? '.$Token.' '.$Token2);
+							}
 						}
-					}
+					} 
+					
 					break;
 				case "/end":
 					if (!$silent) $this->tree->close();
+
 					if ($Token2 == 'A2ML') $silent = false;
 					break;
 				default:
@@ -107,21 +131,34 @@ class a2lparser{
 						if((!in_array($nextToken, $this->beginend)) and (!in_array($nextToken, $this->keywords)) and (strlen($nextToken) !== 0)){
 							$Token2 = $this->get();
 							
+							//Msg($Token.' and '.$Token2);
 							if (!$silent) $this->tree->insert($Token, $Token2);
 						} else {
-							if (!$silent) $this->tree->insert($Token, 'empty');
+							//Msg('been here');
+							if (!$silent){
+								$this->tree->insert($Token, 'empty');
+								$away[] = $this->tokens->getNextToken();
+							} 
 						}
 					} else {
 						if (!$silent) {
-							$this->tree->insert('text', $Token);
+							//Msg('Lost token '.$Token);
+							if($Token != '') {
+								$this->tree->insert('text', $Token);
+							}
 						}
 					}
 			}
 		}
+		//var_dump($away);
 	}
 
 	public function Prt(){
-		$this->tree->Prt();
+		return $this->tree->Prt();
+	}
+
+	public function getBuffer(){
+		return $this->tree->getBuffer();
 	}
 
 	public function get(){
