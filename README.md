@@ -6,9 +6,9 @@ USAGE:
  
  Converts an A2L file into a more usable SQLite database
   
-  The converter is designed to be as fast as possible. Compared to other scripts, this beats them all hands-down.
+  The converter is designed to be as fast as possible, with most files processed within a second. Compared to other scripts, this beats them all hands-down.
   
-  Tested with over 500 A2L files
+  Tested with over 4000 A2L files
   
   Pull requests are welcome
   
