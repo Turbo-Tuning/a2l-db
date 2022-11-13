@@ -17,7 +17,7 @@ class a2lArrayManager{
         $this->populateArrays();
         $time_end = microtime(true);
         $execution_time = ($time_end - $time_start);
-        echo ('a2lArrayManager Time: '.$execution_time.' Secs'.PHP_EOL);
+        echo ('<b>Total a2lArrayManager Time:</b> '.$execution_time.' Secs'.PHP_EOL);
         //$this->Test();
     }
 
@@ -25,20 +25,39 @@ class a2lArrayManager{
         $yy = $this->xmldb->getListOf('MEMORY_SEGMENT');
         if(count($yy) > 0){
             foreach($yy as $yv){
-                $xx = $this->xmldb->getParameterByName('MEMORY_SEGMENT', $yv);
-                $offset = 0;
-                if(!isset($xx[0]['@attributes']['shortDesc'])){
-                    $offset = 1;
-                }
-                if($xx[0]['text'][$offset] == 'CODE'){
+                if($yv == '_ROM'){
+                    $xx = $this->xmldb->getParameterByName('MEMORY_SEGMENT', $yv);
                     if(isset($xx[0]['IF_DATA']['ADDRESS_MAPPING'])){
+                        var_dump($xx);
                         return $xx[0]['IF_DATA']['ADDRESS_MAPPING'];
                     } elseif(isset($xx[0]['IF_DATA'][0]['ADDRESS_MAPPING'])) {
                         return $xx[0]['IF_DATA'][0]['ADDRESS_MAPPING'];
                     } else {
-                        return $xx[0]['text'][3];
+                        if($this->is_hex($xx[0]['text'][3])){
+                            return $xx[0]['text'][3];
+                        } else {
+                            return $xx[0]['text'][4];
+                        }
+                    }
+                } else {
+                    $xx = $this->xmldb->getParameterByName('MEMORY_SEGMENT', $yv);
+                    $offset=0;
+                    if($xx[0]['text'][$offset] == 'CODE'){
+                        
+                        if(isset($xx[0]['IF_DATA']['ADDRESS_MAPPING'])){
+                            return $xx[0]['IF_DATA']['ADDRESS_MAPPING'];
+                        } elseif(isset($xx[0]['IF_DATA'][0]['ADDRESS_MAPPING'])) {
+                            return $xx[0]['IF_DATA'][0]['ADDRESS_MAPPING'];
+                        } else {
+                            if($this->is_hex($xx[0]['text'][3])){
+                                return $xx[0]['text'][3];
+                            } else {
+                                return $xx[0]['text'][4];
+                            }
+                        }
                     }
                 }
+                
             }
         } else {
             $yy = $this->xmldb->getListOf('MEMORY_LAYOUT');
@@ -95,7 +114,7 @@ class a2lArrayManager{
                 $cm->coeff_f = $ret[0]['text'][8+$k];
             } else {
                 if(!in_array($cm->compu_type, $this->compu_types)){
-                    Msg('not compu_type? '.$cm->compu_type);
+                    echo('not compu_type? '.$cm->compu_type);
                 }       
             }
         } else {
@@ -113,7 +132,7 @@ class a2lArrayManager{
                 $cm->coeff_f = $ret[0]['text'][10];
             } else {
                 if(!in_array($cm->compu_type, $this->compu_types)){
-                    Msg('not compu_type? '.$cm->compu_type);
+                    echo('not compu_type? '.$cm->compu_type);
                 }
             }
         }
@@ -137,7 +156,7 @@ class a2lArrayManager{
             $ms->name = $ret[0]['@attributes']['shortDesc'];
             $ms->desc = $ret[0]['@attributes']['longDesc'];
             if(!isset($ret[0]['text'][0])){
-                //Msg('data_type error');
+                echo('data_type error');
             }
             $ms->data_type = $ret[0]['text'][0];
             $ms->compu_method = $ret[0]['text'][1];
@@ -209,15 +228,15 @@ class a2lArrayManager{
     }
 
     private function populateArrays(){
-        //Msg('populateCharacteristics');
+        //echo('populateCharacteristics');
         $this->populateCharacteristics();
-        //Msg('populate Measurements');
+        //echo('populate Measurements');
         $this->populateMeasurements();
         $this->populateCompuMethods();
         $this->populateRecordLayouts();
-        //Msg('populate Functions');
+        //echo('populate Functions');
         $this->populateFunctions();
-        //Msg('finished populating');
+        //echo('finished populating');
 
     }
 
@@ -285,11 +304,11 @@ class a2lArrayManager{
                         $cm->coeff_f = $ret[0]['text'][8+$k];
                     } else {
                         if(!in_array($cm->compu_type, $this->compu_types)){
-                            //Msg('not compu_type? '.$cm->compu_type);
+                            echo('not compu_type? '.$cm->compu_type);
                         }       
                     }
                 } else {
-                    //Msg('Check compu_method');
+                    echo('Check compu_method');
                     $cm->compu_type = $ret[0]['text'][0];
                     $cm->formula = $ret[0]['FORMULA']['text'];
                 }
@@ -308,7 +327,7 @@ class a2lArrayManager{
                     $cm->coeff_f = $ret[0]['text'][10];
                 } else {
                     if(!in_array($cm->compu_type, $this->compu_types)){
-                        //Msg('not compu_type? '.$cm->compu_type);
+                        echo('not compu_type? '.$cm->compu_type);
                     }
                 }
             }
@@ -329,7 +348,7 @@ class a2lArrayManager{
                 $ms->name = $ret[0]['@attributes']['shortDesc'];
                 $ms->desc = $ret[0]['@attributes']['longDesc'];
                 if(!isset($ret[0]['text'][0])){
-                    //Msg('data_type error');
+                    echo('data_type error');
                 }
                 $ms->data_type = $ret[0]['text'][0];
                 $ms->compu_method = $ret[0]['text'][1];
@@ -339,7 +358,7 @@ class a2lArrayManager{
                 $ms->upperLimit = $ret[0]['text'][5];
                 //return $ms;
             } else {
-                //Msg('different');
+                echo('different');
             }
             //$ms = json_decode(json_encode((array)$ms), TRUE);
             $this->measurements[$ms->name] = $ms;
@@ -365,7 +384,7 @@ class a2lArrayManager{
             if(isset($ret[0]['FORMAT'])) {
                 $cha->format = $ret[0]['FORMAT'];
             } else {
-                //Msg('No FORMAT?');
+                //echo('No FORMAT?');
             }
             if(isset($ret[0]['FUNCTION_LIST'])) $cha->function = @$ret[0]['FUNCTION_LIST'];
 
@@ -429,5 +448,10 @@ class a2lArrayManager{
             //$cha = json_decode(json_encode((array)$cha), TRUE);
             $this->characteristics[$cha->name] = $cha;
         }
+    }
+
+    function is_hex($hex_code) {
+        if(strtolower(substr($hex_code,0,2) == '0x'))	$hex_code = substr($hex_code, 2);
+        return @preg_match("/^[a-f0-9]{2,}$/i", $hex_code) && !(strlen($hex_code) & 1);
     }
 }
