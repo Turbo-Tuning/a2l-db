@@ -1,8 +1,11 @@
 <?php
-
 /**
- *   @title: Simple collection class in PHP
- *   @link : http://www.sitepoint.com/collection-classes-in-php/
+ * This file is part of TurboTuner/a2l-db package.
+ *
+ * Licensed under the GPL3 License
+ * (c) TurboTuner
+ * 
+ * Parts borrowed from http://www.sitepoint.com/collection-classes-in-php/
  */
 
 class KeyHasUseException extends Exception{

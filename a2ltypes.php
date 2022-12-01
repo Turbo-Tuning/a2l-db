@@ -1,4 +1,11 @@
 <?php
+/**
+ * This file is part of TurboTuner/a2l-db package.
+ *
+ * Licensed under the GPL3 License
+ * (c) TurboTuner
+ */
+
 declare(strict_types=1);
 
 define ('UBYTE', 1); //1 byte unsigned integer

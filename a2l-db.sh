@@ -1,5 +1,11 @@
 #!/usr/bin/php 
 <?php
+/**
+ * This file is part of TurboTuner/a2l-db package.
+ *
+ * Licensed under the GPL3 License
+ * (c) TurboTuner
+ */
 
 include_once 'Collection.php';
 include_once 'a2lParser.php';
