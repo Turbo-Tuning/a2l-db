@@ -21,25 +21,37 @@ class ReachedMaxSizeException extends Exception{
 
 }
 
-class Collection implements ArrayAccess, Countable {
+class Collection implements ArrayAccess, IteratorAggregate, Countable {
     private $items = array();
     private $Type;
     private $objName;
+    
+    var $SortColumn;
+    var $SortOrder;
 
     public function __construct(mixed $objType = null){
         if ($objType != null){
             if(is_class($objType)){
                 $this->Type = gettype($objType);
-                $this->objName = get_class($objType);
+                $obj = new $objType;
+                $this->objName = get_class($obj);
             }
         }
     }
 
+    public function __get($n) { 
+        return $this[$n]; 
+    }
+
+
     public function Sort(){
-        
+    }
+
+    public function getIterator(){
+        yield from $this->items;
     }
  
-    public function Add($obj, $key = null){
+    public function addItem($obj, $key = null){
         return $this->offsetSet($key, $obj);
     }
 
@@ -60,6 +72,7 @@ class Collection implements ArrayAccess, Countable {
                 $this->items[$key] = $obj;
             }
         }
+        return $this;
     }
 
     public function offsetUnset($key) 
@@ -100,7 +113,7 @@ class Collection implements ArrayAccess, Countable {
         return isset($this->items[$key]);
     }
 
-    public function all(){
+    public function toArray(){
         return $this->items;
     }
 
