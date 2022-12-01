@@ -10,17 +10,17 @@ USAGE:
 
   Pull requests are welcome
 
-REQUIREMENTS
+REQUIREMENTS:
   PHP 8.1
 
-INSPIRATION
+INSPIRATION:
   Needed a good A2L parser and could not find any that matched my requirements, so I wrote my own. It has gone through several development iterations. 
 
   Development methodology: ITIL 
 
-LICENSE
+LICENSE:
   Released under GPL3 licensing terms. A version with a commercial license also exists (contact me for details).
 
-REFERENCE
+REFERENCE:
   This code is used in several projects from third-parties as well as my own
   
