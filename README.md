@@ -2,7 +2,7 @@
 ASAM MCD-2 MC (aka A2L) parser
 
 # USAGE: 
-  "./a2l-db.sh a2l-file"
+  `./a2l-db.sh a2l-file`
  
  Converts an A2L file into a collection of objects, which are serialized, deflated and saved to a ".parsed" file.
   
