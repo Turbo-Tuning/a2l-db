@@ -1,11 +1,4 @@
 <?php
-/**
- * This file is part of TurboTuner/a2l-db package.
- *
- * Licensed under the GPL3 License
- * (c) TurboTuner
- */
-
 declare(strict_types=1);
 
 define ('UBYTE', 1); //1 byte unsigned integer
@@ -26,9 +19,12 @@ function getByteSize($type){
 }
 
 
-class _BASETYPE {
+class _BASETYPE implements Countable{
     public function __get($name) {
         //Msg('Get '.$name.' with value= '.$this->name);
+        if(!isset($this->$name)){
+            return bin2hex(random_bytes(5));
+        }
         return $this->$name;
     }
 
@@ -43,6 +39,10 @@ class _BASETYPE {
 
     public function Vars(){
         return get_object_vars($this);
+    }
+
+    public function count(){
+        return count($this->Vars());
     }
 
     public function countVars(){
@@ -65,11 +65,12 @@ class ASAP2_VERSION extends _BASETYPE{
 }
 
 class A2L extends _BASETYPE{
+    var $ASAP2_VERSION;
     var $name;
     var $PROJECT;
     var $IF_DATA;
     var $MODULE;
-    var $ASAP2_VERSION;
+    
 }
 
 class PROJECT extends _BASETYPE{
