@@ -8,6 +8,8 @@
 
 
 class a2lparser {
+    var $db_dir = 'parser_a2l/db/';
+    var $trenner = array(" ", "[", "]", "{", "}", "(", ")", ",", ";", "=", "\r", "\l", "/", '"');
     var $beginend = array('/begin', '/end');
     var $DataTypes = array(
         'UBYTE',
@@ -20,7 +22,6 @@ class a2lparser {
         'FLOAT64_IEEE',
         'FLOAT32_TASKING'
     );
-    // Main A2L sections: uncomment the ones you want (!!!you may need to carry out some debugging!!!)
     var $mainsections = array(
         //'A2ML',
         'AXIS_DESCR',
@@ -51,13 +52,11 @@ class a2lparser {
         //'TP_BLOB',
         //'VS_DEF'
     );
-    
-    //List of sections the parser will only get tokens with actual content
+    var $go_silent = array('A2ML', 'CALIBRATION_HANDLE', 'CALIBRATION_METHOD', 'CAN_PARAM', 'CHECKSUM', 'CHECKSUM_PARAM', 'COMPU_VTAB',
+    'DIAG_BAUD', 'DISTAB_CFG', 'ETK_XETK_ACCESS', 'FLASH_COPY', 'IF_DATA', 'PAGE_SWITCH', 'QP_BLOB', 'RASTER', 'RECORD_LAYOUT', 'SEED_KEY', 'SEGMENT', 'SOURCE', 'TP_BLOB');
     var $no_skip = array(
         'AXIS_DESCR', 'CHARACTERISTIC', 'COMPU_METHOD', 'FUNCTION', 'HEADER', 'MEASUREMENT', 'MEMORY_SEGMENT', 'MODULE', 'MOD_COMMON', 'MOD_PAR');
     var $excl_from_vars = array('AXIS_DESCR');
-
-    //Keywords of variables in the various sections
     var $keywords = array(
         'ALIGNMENT_BYTE', 'ALIGNMENT_WORD', 'ALIGNMENT_LONG', 'ADDR_EPK', 'ADDRESS_MAPPING', 'ASAP2_VERSION', 'BYTE_ORDER', 'CAN_ID_FIXED', 'COMPU_METHOD', 'CPU_TYPE', 'CUSTOMER_NO', 
         'DEPOSIT', 'ECU', 'ECU_ADDRESS', 'EPK', 'EXTENDED_LIMITS', 'FIRST_PID', 'FORMAT',
@@ -86,8 +85,21 @@ class a2lparser {
     function Parse() {
         set_time_limit(0);
 
-        $data = ($this->RecursiveParse('A2L'));
+        $f = $this->outFile.'.a2l.PARSED';
+        if(file_exists($f)){
+            return;
+        }
+        //$this->tokens->MoveFirst();
+        //Msg('Begin parse. ');
 
+        //$this->root->AddNode('A2L', 'A2L', 'A2L');
+        $data = ($this->RecursiveParse('A2L'));
+        //$this->root = ($data);
+        
+        $ser = gzdeflate(serialize($data));
+
+        file_put_contents($f, $ser);
+        //return $this->getBuffer();
         return $data;
     }
 
@@ -95,7 +107,8 @@ class a2lparser {
         $silent = false;
         $skip = false;
         if ($type == '') {
-            $item = new A2L;	
+            $item = new A2L;
+            //$curr = $this->curr;	
         } elseif($type == 'FUNCTION') {
             $item = new FUNC;
         } else {
@@ -118,12 +131,20 @@ class a2lparser {
                 
                 if (in_array($section, $this->mainsections)) {
                     //new section
+                    //$this->curr->add($section);
                     
                     $data = $this->RecursiveParse($section);
 
                     if(is_array($item->$section)){
-                        $item->$section[] = $data;
-                    } else {    
+                        if(property_exists($section, 'name')){
+                            $item->$section[$data->name] = $data;
+                        } else {
+                            $item->$section[] = $data;
+                        }
+                        
+                    } else {
+                        //Msg('val '.$section);
+                        
                         $item->$section = $data;
                     }
                 }    
@@ -135,13 +156,17 @@ class a2lparser {
                         $silent = false;
                     }
 
+                    //Msg('end '.$section);
                     return $item;
-
+                    //$coll = new Collection;
+                    //$this->curr->addItem($item);
+                    //return $this->curr;
                 } else {
                     if(in_array($section, $this->mainsections)){
                         Msg('Problem ending section '.$section);    
                     }
                 }
+                //return $item;
                 break;
             default:
                 if(!$silent){
@@ -152,6 +177,9 @@ class a2lparser {
                             if (is_object($item->$Token)) {
                                 $item->$Token = ($data); //add object
                                 $idx+count($data);
+                            } else {
+                                    $item->$Token = $data;
+                                    $idx++;
                             }
                         } else {
                             $item->$Token = $data;
@@ -240,6 +268,14 @@ class a2lparser {
         return $ret;
     }
 
+    public function Prt() {
+        return $this->root->Prt();
+    }
+
+    public function getBuffer() {
+        return $this->root->getBuffer();
+    }
+
     public function get(bool $skip_empty = false) {
         $t = '';
         if($this->tokens->endToken === true){
@@ -255,9 +291,6 @@ class a2lparser {
             $t = trim($this->tokens->getToken(), chr(34));
         }
         
-        //} else {
-        //    $t = '';
-        //}
         return $t;
     }
 }
