@@ -1,11 +1,11 @@
 <?php
+
 /**
  * This file is part of TurboTuner/a2l-db package.
  *
  * Licensed under the GPL3 License
  * (c) TurboTuner
  */
-
 
 class a2lparser {
     var $db_dir = 'parser_a2l/db/';
@@ -46,22 +46,26 @@ class a2lparser {
         'PROJECT',
         //'QP_BLOB',
         //'RASTER',
+        'RECORD_LAYOUT',
         //'RECORD_SEGMENT',
         //'SEGMENT',
         //'SOURCE',
         //'TP_BLOB',
         //'VS_DEF'
     );
-    var $go_silent = array('A2ML', 'CALIBRATION_HANDLE', 'CALIBRATION_METHOD', 'CAN_PARAM', 'CHECKSUM', 'CHECKSUM_PARAM', 'COMPU_VTAB',
-    'DIAG_BAUD', 'DISTAB_CFG', 'ETK_XETK_ACCESS', 'FLASH_COPY', 'IF_DATA', 'PAGE_SWITCH', 'QP_BLOB', 'RASTER', 'RECORD_LAYOUT', 'SEED_KEY', 'SEGMENT', 'SOURCE', 'TP_BLOB');
+    
     var $no_skip = array(
-        'AXIS_DESCR', 'CHARACTERISTIC', 'COMPU_METHOD', 'FUNCTION', 'HEADER', 'MEASUREMENT', 'MEMORY_SEGMENT', 'MODULE', 'MOD_COMMON', 'MOD_PAR');
-    var $excl_from_vars = array('AXIS_DESCR');
+        'AXIS_DESCR', 'CHARACTERISTIC', 'COMPU_METHOD', 'FUNCTION', 'HEADER', 'MEASUREMENT', 'MEMORY_SEGMENT', 'MODULE', 'MOD_COMMON', 'MOD_PAR', 'RECORD_LAYOUT');
+    
     var $keywords = array(
-        'ALIGNMENT_BYTE', 'ALIGNMENT_WORD', 'ALIGNMENT_LONG', 'ADDR_EPK', 'ADDRESS_MAPPING', 'ASAP2_VERSION', 'BYTE_ORDER', 'CAN_ID_FIXED', 'COMPU_METHOD', 'CPU_TYPE', 'CUSTOMER_NO', 
+        'ALIGNMENT_BYTE', 'ALIGNMENT_WORD', 'ALIGNMENT_LONG', 'ADDR_EPK', 'ADDRESS_MAPPING', 'ASAP2_VERSION', 
+        'BYTE_ORDER', 'CAN_ID_FIXED', 'COMPU_METHOD', 'CPU_TYPE', 'CUSTOMER_NO', 
         'DEPOSIT', 'ECU', 'ECU_ADDRESS', 'EPK', 'EXTENDED_LIMITS', 'FIRST_PID', 'FORMAT',
-        'FUNCTION_LIST', 'IF_DATA', 'LENGTH', 'MEMORY_LAYOUT', 'PHONE_NO', 'PROJECT_NO', 'PAGE_SWITCH', 'RASTER', 
-        'SYSTEM_CONSTANT', 'USER', 'VERSION');
+        'FUNCTION_LIST', 'IF_DATA', 'LENGTH', 'MEMORY_LAYOUT', 
+        'PHONE_NO', 'PROJECT_NO', 'PAGE_SWITCH', 'RASTER', 
+        'SYSTEM_CONSTANT', 'USER', 'VERSION', 'FNC_VALUES',
+        'AXIS_PTS_X', 'AXIS_PTS_Y', 'NO_AXIS_PTS_X', 'NO_AXIS_PTS_Y');
+    
     var $watch_vars = array('uom', 'longDesc');
 
     var $end = false;
@@ -173,13 +177,20 @@ class a2lparser {
 
                     if (in_array($Token, $this->keywords)) {
                         $data = $this->DoKeywords($Token);
+                        if(is_string($data)){
+                            if(in_array($data, $this->keywords)){
+                                $Token = $data;
+                                $data = $this->DoKeywords($Token);
+                            }
+                        }
+                        
                         if (is_object($data)) {
                             if (is_object($item->$Token)) {
                                 $item->$Token = ($data); //add object
                                 $idx+count($data);
                             } else {
                                     $item->$Token = $data;
-                                    $idx++;
+                                    $idx+count($data);
                             }
                         } else {
                             $item->$Token = $data;
@@ -213,8 +224,11 @@ class a2lparser {
                                         break;
                                 }
                             } 
-                            $item->$varName = $Token;
-                            $idx++;
+                            if($Token != ''){
+                                $item->$varName = $Token;
+                                $idx++;
+                            } 
+                            
                         }
                     }
                 }
@@ -261,19 +275,33 @@ class a2lparser {
                 $ret = new FUNC;
                 
                 break;
+            case 'FNC_VALUES':
+            case 'AXIS_PTS_X':
+            case 'AXIS_PTS_Y':
+            case 'NO_AXIS_PTS_X':
+            case 'NO_AXIS_PTS_Y':
+                $ret = new RecordLayoutVars;
+                $vv = get_class_vars(get_class($ret));
+                foreach($vv as $k => $r){
+                    $t = $this->get();
+                    if($t != ''){
+                        if(in_array($t, $this->keywords)){
+                            //found keyword, return and resume with keyword
+                            return $t;
+                        } else {
+                            $ret->$k = $t;
+                        }
+                    } else {
+                        //do nothing
+                        break;
+                    }
+                }
+                break;
             default:
                 //$ret = new _BASETYPE;
                 $ret = $this->get();
         }
         return $ret;
-    }
-
-    public function Prt() {
-        return $this->root->Prt();
-    }
-
-    public function getBuffer() {
-        return $this->root->getBuffer();
     }
 
     public function get(bool $skip_empty = false) {
