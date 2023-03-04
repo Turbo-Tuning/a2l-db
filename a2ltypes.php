@@ -20,6 +20,8 @@ function getByteSize($type){
 
 
 class _BASETYPE implements Countable{
+
+
     public function __get($name) {
         //Msg('Get '.$name.' with value= '.$this->name);
         if(!isset($this->$name)){
@@ -46,22 +48,19 @@ class _BASETYPE implements Countable{
     }
 
     public function countVars(){
-        $i=0;
-        /*$vars = $this->Vars();
-        foreach($vars as $k => $v){
-            if(!ctype_upper($k)){
-                $i++;
-            }
-        }
-
-        return count($vars)-$i;*/
         return count($this->Vars());
     }
+
+
 }
 
 class ASAP2_VERSION extends _BASETYPE{
     var $major;
     var $minor;
+}
+
+class AXIS_PTS extends _BASETYPE{
+    var $var1;
 }
 
 class A2L extends _BASETYPE{
@@ -70,7 +69,35 @@ class A2L extends _BASETYPE{
     var $PROJECT;
     var $IF_DATA;
     var $MODULE;
-    
+}
+
+class CHECKSUM extends _BASETYPE{
+    var $var1;
+}
+
+class CAN_PARAM extends _BASETYPE{
+    var $var1;
+}
+
+class CHECKSUM_PARAM extends _BASETYPE{
+    var $var1;
+}
+
+class DEFINED_PAGES extends _BASETYPE{
+    var $var1;
+}
+
+class DIAG_BAUD extends _BASETYPE{
+    var $var1;
+}
+
+class DISTAB_CFG extends _BASETYPE{
+    var $type;
+    var $dataType;
+    var $byteOrder;
+    var $triggerSegmentAddr;
+    var $triggerConfiguration;
+    var $TRG_MOD;
 }
 
 class PROJECT extends _BASETYPE{
@@ -78,6 +105,10 @@ class PROJECT extends _BASETYPE{
     var $longDesc;
     var $HEADER;
     var $MODULE;
+}
+
+class FLASH_COPY extends _BASETYPE{
+    var $var1;
 }
 
 CLASS HEADER extends _BASETYPE{
@@ -91,17 +122,24 @@ CLASS MODULE extends _BASETYPE{
     var $longDesc;
     var $DEPOSIT;
     var $FORMAT;
-    var $FUNCTION_LIST;
     var $A2ML;
     var $MOD_PAR;
     var $MOD_COMMON;
     var $IF_DATA;
     var $CHARACTERISTIC = array();
     var $MEASUREMENT = array();
-    var $FUNCTION = array();
+    var $FUNC = array();
     var $COMPU_METHOD = array();
     var $RECORD_LAYOUT = array();
     var $COMPU_VTAB = array();
+}
+
+class PAGE_SWITCH extends _BASETYPE{
+    var $var1;
+}
+
+class SEED_KEY extends _BASETYPE{
+    var $var1;
 }
 
 class SEGMENT extends _BASETYPE{
@@ -133,10 +171,6 @@ CLASS MOD_PAR extends _BASETYPE{
     var $SYSTEM_CONSTANT = array();
     var $IF_DATA = array();
     var $CALIBRATION_METHOD = array();
-
-    public function __construct(){
-        $this->SYSTEM_CONSTANT = array();
-    }
 }
 
 class SYSTEM_CONSTANT extends _BASETYPE{
@@ -201,6 +235,10 @@ class IF_DATA extends _BASETYPE{
     var $SEGMENT;
 }
 
+class LOC_MEASUREMENT extends _BASETYPE{
+    var $var1;
+}
+
 class MOD_COMMON extends _BASETYPE{
     var $name;
     var $BYTE_ORDER;
@@ -224,9 +262,23 @@ class COMPU_METHOD extends _BASETYPE{
     var $coeff_f;
 }
 
+class COMPU_TAB extends _BASETYPE{
+    var $var1;
+}
+
+class COMPU_VTAB extends _BASETYPE{
+    var $name;
+    var $longDesc;
+    var $type;
+    var $qty;
+    var $enum = array();
+}
+
 class RecordLayoutVars extends _BASETYPE{
-    var $lenth;
+    
     var $idx;
+    var $length;
+    var $type;
     var $mode;
 }
 
@@ -237,6 +289,19 @@ class RECORD_LAYOUT extends _BASETYPE{
     var $AXIS_PTS_X;
     var $AXIS_PTS_Y;
     var $FNC_VALUES;
+    var $RESERVED;
+}
+
+class REF_CHARACTERISTIC extends _BASETYPE{
+    var $var1;
+}
+
+class IN_MEASUREMENT extends _BASETYPE{
+    var $var1;
+}
+
+class OUT_MEASUREMENT extends _BASETYPE{
+    var $var1;
 }
 
 class AXIS_DESCR extends _BASETYPE{
@@ -244,7 +309,7 @@ class AXIS_DESCR extends _BASETYPE{
     var $measurement;
     var $compu_method;
     //var $conversion;
-    var $max_axis_points;
+    var $max_axis_points = 0;
     var $lowerLimit;
     var $upperLimit;
     var $EXTENDED_LIMITS;
@@ -301,6 +366,18 @@ class FUNC extends _BASETYPE{
     var $longDesc;
 }
 
+class SUB_FUNCTION extends _BASETYPE{
+    var $func = array();
+}
+
+class DEF_CHARACTERISTIC extends _BASETYPE{
+    var $characteristic = array();
+}
+
+CLASS KP_BLOB extends _BASETYPE{
+    var $var1;
+}
+
 CLASS TP_BLOB extends _BASETYPE{
     var $name;
     var $longDesc;
@@ -322,4 +399,72 @@ CLASS RASTER extends _BASETYPE{
 CLASS EXTENDED_LIMITS extends _BASETYPE{
     var $var1;
     var $var2;
+}
+
+class FUNCTION_LIST extends _BASETYPE{
+
+}
+
+class APPL_PROT extends _BASETYPE{
+    var $var1;
+}
+
+class MCMESS extends _BASETYPE{
+    var $var1;
+}
+
+class VS_DEF extends _BASETYPE{
+    var $var1;
+}
+
+class PSEUDO_ADR extends _BASETYPE{
+    var $var1;
+}
+
+class COLDSTART_HANDSHAKE extends _BASETYPE{
+    var $var1;
+}
+
+class SESSION extends _BASETYPE{
+    var $var1;
+}
+
+class TIME_DEF extends _BASETYPE{
+    var $var1;
+}
+
+class FLASH extends _BASETYPE{
+    var $var1;
+}
+
+class COPY extends _BASETYPE{
+    var $var1;
+}
+
+class CAN extends _BASETYPE{
+    var $var1;
+}
+
+class ADDRESS extends _BASETYPE{
+    var $var1;
+}
+
+class K_LINE extends _BASETYPE{
+    var $var1;
+}
+
+class ETK_PRESENCE_CHECK extends _BASETYPE{
+    var $var1;
+}
+
+class UNIT extends _BASETYPE{
+    var $var1;
+}
+
+class ANNOTATION extends _BASETYPE{
+    var $var1;
+}
+
+class TransportProtocolVersion extends _BASETYPE{
+    var $var1;
 }

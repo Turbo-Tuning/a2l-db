@@ -1,11 +1,6 @@
 <?php
 
-/**
- * This file is part of TurboTuner/a2l-db package.
- *
- * Licensed under the GPL3 License
- * (c) TurboTuner
- */
+//fo
 
 class a2lparser {
     var $db_dir = 'parser_a2l/db/';
@@ -20,10 +15,10 @@ class a2lparser {
         'SLONG',
         'FLOAT32_IEEE',
         'FLOAT64_IEEE',
-        'FLOAT32_TASKING'
+        'FLOAT32_TASKING',
     );
     var $mainsections = array(
-        //'A2ML',
+        'A2L',
         'AXIS_DESCR',
         //'AXIS_PTS',
         //'CALIBRATION_HANDLE',
@@ -33,11 +28,13 @@ class a2lparser {
         //'COMPU_TAB',
         //'COMPU_VTAB',
         //'ETK_XETK_ACCESS',
-        'FUNCTION',
+        'DEF_CHARACTERISTIC', 
+        //'DISTAB_CFG',
+        'FUNC', //stands for FUNCTION, which is a reserved keyword
         //'GROUP',
         'HEADER',
         //'IF_DATA',
-        'MEASUREMENT',
+        'MEASUREMENT', 
         'MEMORY_LAYOUT',
         'MEMORY_SEGMENT',
         'MODULE',
@@ -49,23 +46,34 @@ class a2lparser {
         'RECORD_LAYOUT',
         //'RECORD_SEGMENT',
         //'SEGMENT',
+        'SUB_FUNCTION',
         //'SOURCE',
         //'TP_BLOB',
         //'VS_DEF'
     );
-    
-    var $no_skip = array(
-        'AXIS_DESCR', 'CHARACTERISTIC', 'COMPU_METHOD', 'FUNCTION', 'HEADER', 'MEASUREMENT', 'MEMORY_SEGMENT', 'MODULE', 'MOD_COMMON', 'MOD_PAR', 'RECORD_LAYOUT');
-    
+
+    var $typeClasses = array();
+    var $no_skip = array('SEED_KEY', 'EVENT_GROUP');
+
     var $keywords = array(
-        'ALIGNMENT_BYTE', 'ALIGNMENT_WORD', 'ALIGNMENT_LONG', 'ADDR_EPK', 'ADDRESS_MAPPING', 'ASAP2_VERSION', 
-        'BYTE_ORDER', 'CAN_ID_FIXED', 'COMPU_METHOD', 'CPU_TYPE', 'CUSTOMER_NO', 
-        'DEPOSIT', 'ECU', 'ECU_ADDRESS', 'EPK', 'EXTENDED_LIMITS', 'FIRST_PID', 'FORMAT',
-        'FUNCTION_LIST', 'IF_DATA', 'LENGTH', 'MEMORY_LAYOUT', 
-        'PHONE_NO', 'PROJECT_NO', 'PAGE_SWITCH', 'RASTER', 
-        'SYSTEM_CONSTANT', 'USER', 'VERSION', 'FNC_VALUES',
-        'AXIS_PTS_X', 'AXIS_PTS_Y', 'NO_AXIS_PTS_X', 'NO_AXIS_PTS_Y');
-    
+        'ALIGNMENT_BYTE', 'ALIGNMENT_WORD', 'ALIGNMENT_LONG', 'ADDR_EPK', 'ADDRESS_MAPPING', 'ASAP2_VERSION', 'AXIS_PTS_X', 'AXIS_PTS_Y',
+        'BIT_MASK', 'BYTE_ORDER',
+        'CAN_ID_FIXED', 'COMPU_METHOD', 'COMPU_TAB_REF', 'CPU_TYPE', 'CUSTOMER_NO',
+        'DEPOSIT', 'DISPLAY_IDENTIFIER',
+        'ECU', 'ECU_ADDRESS', 'ECU_ADDRESS_EXTENSION', 'EPK', 'EXTENDED_LIMITS',
+        'FIRST_PID', 'FNC_VALUES', 'FORMAT', 'FUNCTION_LIST',
+        'IF_DATA',
+        'LENGTH',
+        'MATRIX_DIM', 'MEMORY_LAYOUT',
+        'NO_AXIS_PTS_X', 'NO_AXIS_PTS_Y', 'NUMBER',
+        'PHONE_NO', 'PROJECT_NO', 'PAGE_SWITCH',
+        'RASTER', 'RESERVED',
+        'SYMBOL_LINK', 'SYSTEM_CONSTANT',
+        'TAB_VERB',
+        'USER',
+        'VERSION',
+    );
+
     var $watch_vars = array('uom', 'longDesc');
 
     var $end = false;
@@ -74,23 +82,32 @@ class a2lparser {
     var $silent = false;
     var $root;
     var $curr;
+    var $skip;
+
+    public static $drop_back;
 
     function __construct($tokens, $outFile) {
         $this->tokens = $tokens;
         //$this->root = new xmlTree($outFile);
         $this->outFile = $outFile;
         $this->root = new _BASETYPE;
-		$this->curr = $this->root;
+        $this->curr = $this->root;
+        $this->skip = true;
+        foreach (get_declared_classes() as $class) {
+            if (is_subclass_of($class, '_BASETYPE')) {
+                $this->typeClasses[] = $class;
+            }
+
+        }
     }
 
     function __destruct() {
     }
 
     function Parse() {
-        set_time_limit(0);
 
-        $f = $this->outFile.'.a2l.PARSED';
-        if(file_exists($f)){
+        $f = $this->outFile . '.a2l.PARSED';
+        if (file_exists($f)) {
             return;
         }
         //$this->tokens->MoveFirst();
@@ -99,98 +116,163 @@ class a2lparser {
         //$this->root->AddNode('A2L', 'A2L', 'A2L');
         $data = ($this->RecursiveParse('A2L'));
         //$this->root = ($data);
+        if(self::$drop_back == ''){
+            $ser = gzdeflate(serialize($data));
+            //file_put_contents($f, $ser);
+            //return $this->getBuffer();
+            return $data;
+        } else {
+            self::$drop_back = '';
+        }
         
-        $ser = gzdeflate(serialize($data));
-
-        file_put_contents($f, $ser);
-        //return $this->getBuffer();
-        return $data;
     }
 
     function RecursiveParse($type = '') {
         $silent = false;
-        $skip = false;
+        $skip = true;
+        $bUnexpectedBeginEnd = false;
         if ($type == '') {
             $item = new A2L;
-            //$curr = $this->curr;	
-        } elseif($type == 'FUNCTION') {
-            $item = new FUNC;
+            //$curr = $this->curr;
         } else {
             $item = new $type;
         }
-        $idx = 0; //index for Vars
-        if(in_array($type, $this->no_skip)){
-            $skip = true;
+
+        if (!in_array($type, $this->mainsections)) {
+            $silent = true;
+            //Msg('going silent for ' . $section);
+        } else {
+            $silent = false;
         }
 
+        $idx = 0; //index for Vars
+        if (in_array($type, $this->no_skip)) {
+            $skip = false;
+        }
+        $this->skip = $skip;
+
         while ($this->end != true) {
-            $Token = $this->get($skip);
-            switch ($Token) {
-            case "/begin":
-                $section = $this->get($skip);
+            $section = '';
+            if(self::$drop_back != ''){
+                return $item;
+            }
 
-                if(!in_array($section, $this->mainsections)) {
-                    $silent = true;
-                } 
-                
-                if (in_array($section, $this->mainsections)) {
-                    //new section
-                    //$this->curr->add($section);
-                    
-                    $data = $this->RecursiveParse($section);
 
-                    if(is_array($item->$section)){
-                        if(property_exists($section, 'name')){
-                            $item->$section[$data->name] = $data;
-                        } else {
-                            $item->$section[] = $data;
-                        }
-                        
-                    } else {
-                        //Msg('val '.$section);
-                        
-                        $item->$section = $data;
+            if (!$bUnexpectedBeginEnd) {
+                $Token = $this->get($skip);
+                if(in_array($Token, $this->mainsections)){
+                    $ignore = array('MEASUREMENT', 'QP_BLOB');
+                    if(!in_array($Token, $ignore)){
+                        //missing "/begin"??? probable
+                        $section = $Token;
+                        $Token = '/begin';
                     }
-                }    
+                }
+            } else {
+                //Msg('Unexpected ' . $data);
+                $Token = $data;
+            }
+            $bUnexpectedBeginEnd = false;
+
+            switch ($Token) {
+            case "false":
+                break;
+            case "/begin":
+                if($section == ''){
+                    $section = $this->get($skip);
+                }
+
+                //special handling to prevent use of reserved keyword
+                if ($section == 'FUNCTION') {
+                    $section = "FUNC";
+                }
+
+                if (!in_array($section, $this->typeClasses)) {
+                    if (!mb_detect_encoding($section, 'ASCII', true)) {
+                        $section = 'NO_NAME';
+                    }
+                    $string = 'class ' . $section . ' extends _BASETYPE { var $var1; }';
+                    //Msg($string);
+                    eval($string);
+                    unset($this->typeClasses);
+                    $this->typeClasses = array();
+                    foreach (get_declared_classes() as $class) {
+                        if (is_subclass_of($class, '_BASETYPE')) {
+                            $this->typeClasses[] = $class;
+                        }
+
+                    }
+                }
+                //new section
+                //$this->curr->add($section);
+
+                $data = $this->RecursiveParse($section);
+
+                if (is_array($item->$section)) {
+                    if (property_exists($section, 'name')) {
+                        $item->$section[$data->name] = $data;
+                    } else {
+                        $item->$section[] = $data;
+                    }
+
+                } else {
+                    $item->$section = $data;
+                }
+
                 break;
             case "/end":
                 $section = $this->get($skip);
+
+                //special handling to prevent use of reserved keyword
+                if ($section == 'FUNCTION') {
+                    $section = "FUNC";
+                }
+
                 if ($section == $type) {
-                    if (!in_array($section, $this->mainsections)){
-                        $silent = false;
-                    }
 
                     //Msg('end '.$section);
+                    
                     return $item;
                     //$coll = new Collection;
                     //$this->curr->addItem($item);
                     //return $this->curr;
+                } elseif (in_array($section, $this->mainsections)) {
+                    Msg('Problem ending section ' . $section);
+                    self::$drop_back = $section;
+
                 } else {
-                    if(in_array($section, $this->mainsections)){
-                        Msg('Problem ending section '.$section);    
-                    }
+                    Msg('Gone wrong ending ' . $section . '. expected ' . $type);
+                    self::$drop_back = $section;
                 }
                 //return $item;
                 break;
             default:
-                if(!$silent){
+                if (!$silent) {
 
                     if (in_array($Token, $this->keywords)) {
                         $data = $this->DoKeywords($Token);
-                        if(is_string($data)){
-                            if(in_array($data, $this->keywords)){
+                        if (in_array($data, $this->beginend)) {
+                            $bUnexpectedBeginEnd = true;
+                            break;
+                        }
+                        if (is_string($data)) {
+                            if (in_array($data, $this->keywords)) {
                                 $Token = $data;
                                 $data = $this->DoKeywords($Token);
+                                if (in_array($data, $this->beginend)) {
+                                    $bUnexpectedBeginEnd = true;
+                                    break;
+                                }
                             }
                         }
-                        
+
                         if (is_object($data)) {
                             if (is_object($item->$Token)) {
                                 $item->$Token = ($data); //add object
-                                $idx+count($data);
+                                $idx + count($data);
                             } else {
-                                    $item->$Token = $data;
-                                    $idx+count($data);
+                                $item->$Token = $data;
+                                $idx + count($data);
                             }
                         } else {
                             $item->$Token = $data;
@@ -200,35 +282,47 @@ class a2lparser {
                         $x = $item->countVars();
                         if ($idx < $x) {
                             $varName = $item->Var($idx);
-                            if(in_array($varName, $this->watch_vars)){
+                            if(in_array($varName, $this->mainsections)){
+                                    break;
+                            }
+                            if (in_array($varName, $this->watch_vars)) {
                                 //special handling
-                                switch($varName){
-                                    case 'uom':
-                                        if($Token == 'COEFFS'){
+                                switch ($varName) {
+                                case 'uom':
+                                    if ($Token == 'COEFFS') {
+                                        $idx++;
+                                        $varName = $item->Var($idx);
+                                    }
+                                    break;
+                                case 'longDesc':
+                                    $longArr = array('CHARACTERISTIC' => array('ASCII', 'MAP', 'CURVE', 'VALUE', 'VAL_BLK'),
+                                        'MEMORY_SEGMENT' => array('CODE', 'DATA', 'RESERVED', 'VARIABLES'),
+                                        'COMPU_METHOD' => array('FORM', 'RAT_FUNC', 'TAB_VERB'),
+                                        'MEASUREMENT' => $this->DataTypes);
+                                    //echo $type.'<br/>';
+                                    if (isset($longArr[$type])) {
+                                        if (in_array($Token, $longArr[$type])) {
                                             $idx++;
                                             $varName = $item->Var($idx);
                                         }
-                                        break;
-                                    case 'longDesc':
-                                        $longArr = array('CHARACTERISTIC' => array('MAP', 'CURVE', 'VALUE'),
-                                                        'MEMORY_SEGMENT' => array('CODE', 'DATA', 'RESERVED', 'VARIABLES'),
-                                                        'COMPU_METHOD' => array('FORM', 'RAT_FUNC', 'TAB_VERB'),
-                                                        'MEASUREMENT' => $this->DataTypes);
-                                        //echo $type.'<br/>';
-                                        if(isset($longArr[$type])){
-                                            if(in_array($Token, $longArr[$type])){
-                                                $idx++;
-                                                $varName = $item->Var($idx);
-                                            } 
-                                        }
-                                        break;
+                                    }
+                                    break;
                                 }
-                            } 
-                            if($Token != ''){
-                                $item->$varName = $Token;
-                                $idx++;
-                            } 
-                            
+                            }
+                            if ($Token != '') {
+                                if (is_array($item->$varName)) {
+                                    if (!in_array($varName, $this->mainsections)) {
+                                        $item->$varName[$Token] = $Token;
+                                    } else {
+                                        $item->$varName[$Token] = $Token;
+                                    }
+
+                                } else {
+                                    $item->$varName = $Token;
+                                    $idx++;
+                                }
+                            }
+
                         }
                     }
                 }
@@ -237,88 +331,109 @@ class a2lparser {
         return $item;
     }
 
-    function removeUnwanted($str) {
-        $unwanted_array = array('Š' => 'S', 'š' => 's', 'Ž' => 'Z', 'ž' => 'z', 'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'A', 'Å' => 'A', 'Æ' => 'A', 'Ç' => 'C', 'È' => 'E', 'É' => 'E',
-            'Ê' => 'E', 'Ë' => 'E', 'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I', 'Ñ' => 'N', 'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'O', 'Ø' => 'O', 'Ù' => 'U',
-            'Ú' => 'U', 'Û' => 'U', 'Ü' => 'U', 'Ý' => 'Y', 'Þ' => 'B', 'ß' => 'Ss', 'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a', 'å' => 'a', 'æ' => 'a', 'ç' => 'c',
-            'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e', 'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i', 'ð' => 'o', 'ñ' => 'n', 'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o',
-            'ö' => 'o', 'ø' => 'o', 'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ý' => 'y', 'þ' => 'b', 'ÿ' => 'y');
-        $str = strtr($str, $unwanted_array);
-        return $str;
-    }
+    
 
     private function DoKeywords($keyword) {
         $ret = '';
+
+        //Msg('   DoKeywords '.$keyword);
         switch ($keyword) {
-            case 'ASAP2_VERSION':
-                $ret = new ASAP2_VERSION;
-                $ret->major = $this->get();
-                $ret->minor = $this->get();
-                break;
-            case 'EXTENDED_LIMITS':
-                $ret = new EXTENDED_LIMITS;
-                $ret->var1 = $this->get();
-                $ret->var2 = $this->get();
-                break;
-            case 'SYSTEM_CONSTANT':
-                $ret = new SYSTEM_CONSTANT;
-                $ret->name = $this->get();
-                $ret->constant = $this->get();
-                break;
-            case 'IF_DATA':
-                $ret = new IF_DATA;
-                $ret->name = $this->get();
-                $ret->type = $this->get();
-                $ret->orig_addr = $this->get();
-                break;
-            case 'FUNCTION_LIST':
-                $ret = new FUNC;
-                
-                break;
-            case 'FNC_VALUES':
-            case 'AXIS_PTS_X':
-            case 'AXIS_PTS_Y':
-            case 'NO_AXIS_PTS_X':
-            case 'NO_AXIS_PTS_Y':
-                $ret = new RecordLayoutVars;
-                $vv = get_class_vars(get_class($ret));
-                foreach($vv as $k => $r){
-                    $t = $this->get();
-                    if($t != ''){
-                        if(in_array($t, $this->keywords)){
-                            //found keyword, return and resume with keyword
-                            return $t;
-                        } else {
-                            $ret->$k = $t;
-                        }
+        case 'ASAP2_VERSION':
+            $ret = new ASAP2_VERSION;
+            $ret->major = $this->get();
+            $ret->minor = $this->get();
+            break;
+        case 'EXTENDED_LIMITS':
+            $ret = new EXTENDED_LIMITS;
+            $ret->var1 = $this->get($this->skip);
+            $ret->var2 = $this->get($this->skip);
+            break;
+        case 'SYSTEM_CONSTANT':
+            $ret = new SYSTEM_CONSTANT;
+            $ret->name = $this->get($this->skip);
+            $ret->constant = $this->get($this->skip);
+            break;
+        case 'IF_DATA':
+            $ret = new IF_DATA;
+            $ret->name = $this->get($this->skip);
+            $ret->type = $this->get($this->skip);
+            $ret->orig_addr = $this->get($this->skip);
+            break;
+        case 'NO_AXIS_PTS_X':
+        case 'NO_AXIS_PTS_Y':
+        case 'FNC_VALUES':
+        case 'AXIS_PTS_X':
+        case 'AXIS_PTS_Y':
+            $no_axis = array('NO_AXIS_PTS_X', 'NO_AXIS_PTS_Y');
+            $ret = new RecordLayoutVars;
+            $vv = get_class_vars(get_class($ret));
+            foreach ($vv as $k => $r) {
+                if(($k == 'type') and (in_array($keyword, $no_axis))) break;
+                $t = $this->get($this->skip);
+                if ($t != '') {
+                    if (in_array($t, $this->keywords)) {
+                        //found keyword, return and resume with keyword
+                        return $t;
                     } else {
-                        //do nothing
-                        break;
+                        $ret->$k = $t;
                     }
+                } else {
+                    //do nothing
+                    break;
                 }
-                break;
-            default:
-                //$ret = new _BASETYPE;
-                $ret = $this->get();
+            }
+            break;
+        case 'FUNCTION_LIST':
+            //Msg('FUNCTION_LIST');
+            $ret = $this->get($this->skip);
+            break;
+        case 'TAB_VERB';
+            $ret = array();
+            $test = $this->get(false);
+                if (in_array($test, $this->keywords))
+                    break;
+            if($test != ''){
+                $cnt = $test;
+            
+                for ($x = 0; $x < $cnt; $x++) {
+                    $idx = $this->get($this->skip);
+                    $desc = $this->get($this->skip);
+                    $ret[$idx] = $desc;
+                }
+            } else {
+                $desc = $this->get();
+            }
+            
+
+        default:
+            //$ret = new _BASETYPE;
+            $ret = $this->get($this->skip);
         }
         return $ret;
     }
 
     public function get(bool $skip_empty = false) {
         $t = '';
-        if($this->tokens->endToken === true){
+        if ($this->tokens->endToken === true) {
             $this->end = true;
             return false;
         }
 
-        if($skip_empty){
-            do{
-                $t = trim($this->tokens->getToken(), chr(34));    
-            } while ($t == '');
+        if ($this->skip) {
+            do {
+                $t = trim($this->tokens->getToken(), chr(34));
+                if ($t === 'false'){
+                    $this->end = true;
+                    break;
+                }
+            } while (($t === ''));
         } else {
             $t = trim($this->tokens->getToken(), chr(34));
+            if ($t === 'false'){
+                $this->end = true;
+            }
         }
-        
+
         return $t;
     }
 }
